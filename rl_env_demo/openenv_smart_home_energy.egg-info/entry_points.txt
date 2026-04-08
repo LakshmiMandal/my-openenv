@@ -1,0 +1,2 @@
+[console_scripts]
+server = rl_env_demo.server.app:main

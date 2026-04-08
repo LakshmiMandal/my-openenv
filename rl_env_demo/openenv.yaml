@@ -1,0 +1,125 @@
+spec_version: 1
+name: smart_home_energy
+version: 1.0.0
+description: A real-world environment for training AI agents to optimize energy consumption in smart homes
+author: OpenEnv Team
+license: BSD
+type: space
+runtime: fastapi
+app: server.app:app
+port: 8000
+
+tags:
+  - openenv
+  - energy-management
+  - smart-home
+  - reinforcement-learning
+  - sustainability
+
+environment:
+  type: smart_home_energy
+  observation_space:
+    type: Box
+    shape: [9]
+    dtype: float32
+    low: 0.0
+    high: 1.0
+    features:
+      - name: hour_of_day
+        description: Current hour (0-23) normalized to [0, 1]
+      - name: day_of_week
+        description: Current day (0-6) normalized to [0, 1]
+      - name: outdoor_temp
+        description: Outdoor temperature (-20 to 45°C) normalized
+      - name: indoor_temp
+        description: Indoor temperature (15 to 30°C) normalized
+      - name: solar_generation
+        description: Solar panel output (0-10 kW) normalized
+      - name: battery_charge
+        description: Battery state of charge (0-100%) normalized
+      - name: electricity_price
+        description: Current electricity price ($0.05-0.50/kWh) normalized
+      - name: occupancy
+        description: Home occupancy status (0=away, 1=home)
+      - name: hvac_status
+        description: HVAC state (0=off, 1=heating, 2=cooling) normalized
+  
+  action_space:
+    type: Discrete
+    n: 27
+    description: Combination of HVAC (3) × Battery (3) × Appliances (3)
+    encoding:
+      hvac:
+        - 0: off
+        - 1: heating
+        - 2: cooling
+      battery:
+        - 0: idle
+        - 1: charge
+        - 2: discharge
+      appliances:
+        - 0: minimal
+        - 1: normal
+        - 2: high_usage
+  
+  reward:
+    type: continuous
+    range: [-inf, inf]
+    components:
+      - cost_penalty: Negative reward for electricity cost
+      - comfort_reward: Positive reward for maintaining comfortable temperature
+      - solar_bonus: Bonus for utilizing solar energy
+      - battery_penalty: Penalty for battery misuse
+      - smart_battery_bonus: Bonus for intelligent battery management
+
+tasks:
+  - id: cost_minimization
+    name: Cost Minimization
+    difficulty: easy
+    objective: Minimize daily electricity cost while maintaining basic comfort (18-26°C when home)
+    max_steps: 96
+    success_threshold: 0.6
+    metrics:
+      - total_cost: Target under $5/day
+      - comfort_violations: Minimize violations
+      - completion_rate: Complete full 24-hour episode
+  
+  - id: comfort_optimization
+    name: Comfort Optimization
+    difficulty: medium
+    objective: Maintain optimal comfort (20-24°C) while keeping costs under $8/day
+    max_steps: 96
+    success_threshold: 0.7
+    metrics:
+      - comfort_score: Maintain 20-24°C when home
+      - total_cost: Keep under $8/day
+      - temperature_deviation: Minimize deviation from 22°C target
+  
+  - id: sustainability
+    name: Sustainability Maximization
+    difficulty: hard
+    objective: Maximize solar energy usage (>15 kWh/day), maintain comfort (20-24°C), and minimize cost (<$6/day)
+    max_steps: 96
+    success_threshold: 0.8
+    metrics:
+      - solar_usage: Target >15 kWh/day
+      - total_cost: Keep under $6/day
+      - comfort_score: Maintain 20-24°C when home
+      - battery_efficiency: Optimize battery charge/discharge cycles
+
+episode:
+  max_steps: 96
+  time_step: 15 minutes
+  duration: 24 hours
+
+baseline:
+  random_agent:
+    cost_minimization: 0.15
+    comfort_optimization: 0.10
+    sustainability: 0.05
+  rule_based_agent:
+    cost_minimization: 0.55
+    comfort_optimization: 0.45
+    sustainability: 0.40
+
+
