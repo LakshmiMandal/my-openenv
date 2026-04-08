@@ -32,6 +32,7 @@ from client import SmartHomeEnv
 from models import SmartHomeAction
 
 # Environment variables
+# API_KEY="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"
 IMAGE_NAME = os.getenv("IMAGE_NAME") # If you are using docker image 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
@@ -151,36 +152,11 @@ def get_model_action(client: OpenAI, step: int, observation: SmartHomeObservatio
         return 0  # Default safe action
 
 
-async def main() -> None:
-    """Main inference loop."""
-    # Validate task
-    if TASK_NAME not in [task.task_id for task in ALL_TASKS]:
-        print(f"[ERROR] Unknown task: {TASK_NAME}", flush=True)
-        print(f"[ERROR] Available tasks: {[task.task_id for task in ALL_TASKS]}", flush=True)
-        sys.exit(1)
-    
-    # Initialize OpenAI client
-    if not API_KEY:
-        print("[ERROR] HF_TOKEN or API_KEY environment variable not set", flush=True)
-        sys.exit(1)
-    
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-    
+async def run_task(task_name: str, client: OpenAI, env: SmartHomeEnv) -> Dict[str, Any]:
+    """Run a single task and return results."""
     # Get task configuration
-    task_config = get_task_config(TASK_NAME)
-    grader = get_grader(TASK_NAME)
-    
-    # Initialize environment client
-    try:
-        if LOCAL_IMAGE_NAME:
-            print(
-                "[DEBUG] LOCAL_IMAGE_NAME is set, but from_docker_image() returned an async object in this runtime; using SERVER_URL instead.",
-                flush=True,
-            )
-        env = SmartHomeEnv(base_url=SERVER_URL)
-    except Exception as e:
-        print(f"[ERROR] Failed to connect to environment: {e}", flush=True)
-        sys.exit(1)
+    task_config = get_task_config(task_name)
+    grader = get_grader(task_name)
     
     # Episode tracking
     rewards: List[float] = []
@@ -196,7 +172,7 @@ async def main() -> None:
         'avg_temp_deviation': 0.0
     }
     
-    log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
+    log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
     
     try:
         # Reset environment
@@ -279,14 +255,76 @@ async def main() -> None:
         traceback.print_exc()
     
     finally:
-        # Clean up
+        # Log end
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+    
+    return {
+        'task_name': task_name,
+        'success': success,
+        'score': score,
+        'steps': steps_taken,
+        'rewards': rewards,
+        'episode_info': episode_info
+    }
+
+
+async def main() -> None:
+    """Main inference loop - runs all tasks."""
+    # Initialize OpenAI client
+    if not API_KEY:
+        print("[ERROR] HF_TOKEN or API_KEY environment variable not set", flush=True)
+        sys.exit(1)
+    
+    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    
+    # Initialize environment client
+    try:
+        if LOCAL_IMAGE_NAME:
+            print(
+                "[DEBUG] LOCAL_IMAGE_NAME is set, but from_docker_image() returned an async object in this runtime; using SERVER_URL instead.",
+                flush=True,
+            )
+        env = SmartHomeEnv(base_url=SERVER_URL)
+    except Exception as e:
+        print(f"[ERROR] Failed to connect to environment: {e}", flush=True)
+        sys.exit(1)
+    
+    # Determine which tasks to run
+    if TASK_NAME and TASK_NAME != "all":
+        # Run single task if specified
+        if TASK_NAME not in [task.task_id for task in ALL_TASKS]:
+            print(f"[ERROR] Unknown task: {TASK_NAME}", flush=True)
+            print(f"[ERROR] Available tasks: {[task.task_id for task in ALL_TASKS]}", flush=True)
+            sys.exit(1)
+        tasks_to_run = [TASK_NAME]
+    else:
+        # Run all tasks
+        tasks_to_run = [task.task_id for task in ALL_TASKS]
+    
+    print(f"[INFO] Running {len(tasks_to_run)} task(s): {', '.join(tasks_to_run)}", flush=True)
+    
+    results = []
+    try:
+        for task_name in tasks_to_run:
+            print(f"\n[INFO] Starting task: {task_name}", flush=True)
+            result = await run_task(task_name, client, env)
+            results.append(result)
+            print(f"[INFO] Completed task: {task_name} - Success: {result['success']}, Score: {result['score']:.3f}", flush=True)
+    finally:
+        # Clean up environment
         try:
             await env.close()
         except Exception as e:
             print(f"[DEBUG] env.close() error: {e}", flush=True)
-        
-        # Log end
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+    
+    # Print summary
+    print("\n" + "="*60, flush=True)
+    print("SUMMARY", flush=True)
+    print("="*60, flush=True)
+    for result in results:
+        status = "✓ PASS" if result['success'] else "✗ FAIL"
+        print(f"{status} {result['task_name']}: Score={result['score']:.3f}, Steps={result['steps']}", flush=True)
+    print("="*60, flush=True)
 
 
 if __name__ == "__main__":
