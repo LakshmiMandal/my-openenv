@@ -32,7 +32,6 @@ from client import SmartHomeEnv
 from models import SmartHomeAction
 
 # Environment variables
-# API_KEY="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"
 IMAGE_NAME = os.getenv("IMAGE_NAME") # If you are using docker image 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
