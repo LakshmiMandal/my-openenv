@@ -79,7 +79,7 @@ tasks:
     objective: Minimize daily electricity cost while maintaining basic comfort (18-26°C when home)
     max_steps: 96
     success_threshold: 0.6
-    grader: tasks.grade_cost_minimization
+    grader: rl_env_demo.tasks.grade_cost_minimization
     metrics:
       - total_cost: Target under $5/day
       - comfort_violations: Minimize violations
@@ -91,7 +91,7 @@ tasks:
     objective: Maintain optimal comfort (20-24°C) while keeping costs under $8/day
     max_steps: 96
     success_threshold: 0.7
-    grader: tasks.grade_comfort_optimization
+    grader: rl_env_demo.tasks.grade_comfort_optimization
     metrics:
       - comfort_score: Maintain 20-24°C when home
       - total_cost: Keep under $8/day
@@ -103,7 +103,7 @@ tasks:
     objective: Maximize solar energy usage (>15 kWh/day), maintain comfort (20-24°C), and minimize cost (<$6/day)
     max_steps: 96
     success_threshold: 0.8
-    grader: tasks.grade_sustainability
+    grader: rl_env_demo.tasks.grade_sustainability
     metrics:
       - solar_usage: Target >15 kWh/day
       - total_cost: Keep under $6/day
