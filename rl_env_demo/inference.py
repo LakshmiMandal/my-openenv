@@ -32,6 +32,7 @@ from client import SmartHomeEnv
 from models import SmartHomeAction
 
 # Environment variables
+# API_KEY="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"
 IMAGE_NAME = os.getenv("IMAGE_NAME") # If you are using docker image 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
@@ -212,8 +213,12 @@ async def run_task(task_name: str, client: OpenAI, env: SmartHomeEnv) -> Dict[st
             episode_info['steps_completed'] = step
             
             # Track temperature deviation from metadata
-            if observation.metadata and 'indoor_temp' in observation.metadata:
+            if hasattr(observation, 'metadata') and observation.metadata and 'indoor_temp' in observation.metadata:
                 temp_deviations.append(abs(observation.metadata['indoor_temp'] - 22.0))
+            else:
+                # Fallback: denormalize from observation if metadata not available
+                indoor_temp_actual = observation.indoor_temp * 15.0 + 15.0
+                temp_deviations.append(abs(indoor_temp_actual - 22.0))
             
             # Track battery cycles
             battery_action = (action_id % 9) // 3
