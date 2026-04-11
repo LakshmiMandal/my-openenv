@@ -30,9 +30,9 @@ from models import SmartHomeObservation
 from tasks import get_grader, get_task_config, ALL_TASKS
 from client import SmartHomeEnv
 from models import SmartHomeAction
+from graders import grade_cost_minimization, grade_comfort_optimization, grade_sustainability
 
 # Environment variables
-# API_KEY="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"
 IMAGE_NAME = os.getenv("IMAGE_NAME") # If you are using docker image 
 API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY")
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
